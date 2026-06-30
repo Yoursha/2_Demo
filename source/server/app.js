@@ -1,27 +1,33 @@
+// app.js
 const express = require('express');
-const app = express();
-const port = 3000;
+const cors = require('cors');
+const { connectToServer } = require('./db'); // MongoDB
+const { connectToRedis } = require('./redisDb'); // <-- Add Redis
+require('dotenv').config();
 
-// Middleware to parse JSON bodies from frontend fetch requests
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.use(cors());
 app.use(express.json());
 
 // Import Routes
 const authRoutes = require('./routes/authRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
 const restaurantRoutes = require('./routes/restaurantRoutes');
-const orderRoutes = require('./routes/paymentsRoutes');
 
 // Mount Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/payments', paymentRoutes);
 app.use('/api/restaurants', restaurantRoutes);
-app.use('/api/payments', paymentsRoutes);
 
-// Database Connection Placeholder (e.g., MongoDB/Document Store)
-const connectDB = async () => {
-    // Connect to your NoSQL database here
-};
-
-// Start Server
-app.listen(port, () => {
-    console.log(`Food Delivery API running on http://localhost:${port}`);
-    connectDB();
-});
+// Connect to both databases, then start the server
+Promise.all([connectToServer(), connectToRedis()])
+    .then(() => {
+        app.listen(port, () => {
+            console.log(`🚀 Server running on http://localhost:${port}`);
+        });
+    })
+    .catch(err => {
+        console.error("Failed to start server due to database connection issues", err);
+    });

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NoSQL Demo: Payment History</title>
+    <title>NoSQL Demo: Redis & MongoDB</title>
     <style>
         :root { --primary: #009688; --bg: #eceff1; --text: #263238; --card-bg: #fff; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; }
@@ -17,9 +17,12 @@
         .list-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eceff1; }
         .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #37474f; color: white; padding: 10px; border-radius: 4px; }
         .nav-btn { background: #546e7a; margin: 0 5px; }
-        .badge { background: #ff9800; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; }
+        .badge { color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px;}
+        .badge.mongo { background: #4CAF50; }
+        .badge.redis { background: #D32F2F; }
         .history-card { border: 1px solid #b0bec5; border-left: 4px solid var(--primary); margin-bottom: 10px; padding: 10px; border-radius: 4px; }
         .meta-data { font-size: 12px; color: #78909c; display: block; margin-top: 5px;}
+        .loading { font-style: italic; color: #666; padding: 10px 0; }
     </style>
 </head>
 <body>
@@ -27,52 +30,41 @@
 <div class="container">
     
     <div id="login-view" class="view active">
-        <h2>NoSQL Demo Login</h2>
+        <h2>System Login <span class="badge mongo">MongoDB</span></h2>
         <input type="text" id="username" placeholder="Username (e.g., dat_nguyen)" required>
+        <input type="password" id="password" placeholder="Password" required>
         <button onclick="handleLogin()">Sign In</button>
     </div>
 
     <div id="main-nav" class="nav-bar" style="display: none;">
         <span>User: <b id="display-user"></b></span>
         <div>
-            <button class="nav-btn" onclick="showView('restaurant-view')">Restaurants</button>
+            <button class="nav-btn" onclick="renderRestaurants(); showView('restaurant-view')">Restaurants</button>
             <button class="nav-btn" onclick="renderHistory(); showView('history-view')">Payment History</button>
             <button class="nav-btn" style="background: #d32f2f;" onclick="logout()">Logout</button>
         </div>
     </div>
 
     <div id="restaurant-view" class="view">
-        <h2>Select a Restaurant</h2>
+        <h2>Select a Restaurant <span class="badge redis">Redis Cache</span></h2>
         <div id="restaurant-list"></div>
     </div>
 
     <div id="menu-view" class="view">
-        <h2 id="menu-title">Menu</h2>
+        <h2 id="menu-title">Menu <span class="badge redis">Redis Cache</span></h2>
         <div id="menu-list"></div>
     </div>
 
     <div id="history-view" class="view">
-        <h2>Your Payment History <span class="badge">NoSQL Demo</span></h2>
-        <p style="font-size: 13px; color: #666;">Demonstrating fast retrieval of denormalized, append-only time-series data.</p>
+        <h2>Your Payment History <span class="badge mongo">MongoDB Atlas</span></h2>
         <div id="history-list"></div>
     </div>
 
 </div>
 
 <script>
-    // --- Mock Data ---
-    const mockRestaurants = [
-        { id: 'r1', name: 'Phở Hòa', type: 'Vietnamese' },
-        { id: 'r2', name: 'Pizza 4P\'s', type: 'Italian' }
-    ];
-
-    const mockMenus = {
-        'r1': [{ id: 'm1', name: 'Phở Đặc Biệt', price: 65000 }, { id: 'm2', name: 'Trà Đá', price: 5000 }],
-        'r2': [{ id: 'm3', name: 'Burrata Margherita', price: 250000 }, { id: 'm4', name: 'Crab Pasta', price: 180000 }]
-    };
-
+    const API_BASE_URL = 'http://localhost:3000/api';
     let currentUser = null;
-    let paymentHistory = []; // Simulating our NoSQL Collection
 
     // --- UI Navigation ---
     function showView(viewId) {
@@ -81,49 +73,86 @@
         if (currentUser) document.getElementById('main-nav').style.display = 'flex';
     }
 
-    // --- Core Functions ---
-    function handleLogin() {
-        currentUser = document.getElementById('username').value;
-        if (!currentUser) return;
-        document.getElementById('display-user').innerText = currentUser;
-        renderRestaurants();
-        showView('restaurant-view');
+    // --- AUTHENTICATION (MongoDB) ---
+    async function handleLogin() {
+        const user = document.getElementById('username').value;
+        const pass = document.getElementById('password').value;
+        if (!user || !pass) return alert("Please enter a username and password.");
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: user, password: pass })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "Login failed");
+            
+            currentUser = data.user.username;
+            document.getElementById('display-user').innerText = currentUser;
+            renderRestaurants();
+            showView('restaurant-view');
+        } catch (error) {
+            alert(`Error: ${error.message}`);
+        }
     }
 
     function logout() {
         currentUser = null;
+        document.getElementById('username').value = '';
+        document.getElementById('password').value = '';
         document.getElementById('main-nav').style.display = 'none';
         showView('login-view');
     }
 
-    function renderRestaurants() {
+    // --- CATALOG (Redis) ---
+    async function renderRestaurants() {
         const container = document.getElementById('restaurant-list');
-        container.innerHTML = mockRestaurants.map(r => `
-            <div class="list-item">
-                <div><strong>${r.name}</strong><br><small>${r.type}</small></div>
-                <button onclick="openMenu('${r.id}', '${r.name}')">View Menu</button>
-            </div>
-        `).join('');
+        container.innerHTML = "<div class='loading'>Fetching restaurants from Redis...</div>";
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/restaurants`);
+            const restaurants = await response.json();
+
+            if (!response.ok) throw new Error("Failed to fetch from backend");
+
+            container.innerHTML = restaurants.map(r => `
+                <div class="list-item">
+                    <div><strong>${r.name}</strong><br><small>${r.type}</small></div>
+                    <button onclick="openMenu('${r.id}', '${r.name}')">View Menu</button>
+                </div>
+            `).join('');
+        } catch (error) {
+            container.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+        }
     }
 
-    function openMenu(restId, restName) {
-        document.getElementById('menu-title').innerText = `Menu: ${restName}`;
-        const menu = mockMenus[restId];
-        const container = document.getElementById('menu-list');
-        
-        container.innerHTML = menu.map(item => `
-            <div class="list-item">
-                <div><strong>${item.name}</strong><br>₫${item.price.toLocaleString()}</div>
-                <button onclick="simulatePayment('${restId}', '${restName}', '${item.name}', ${item.price})">Pay Now (Demo)</button>
-            </div>
-        `).join('');
+    async function openMenu(restId, restName) {
+        document.getElementById('menu-title').innerHTML = `Menu: ${restName} <span class="badge redis">Redis Cache</span>`;
         showView('menu-view');
+        
+        const container = document.getElementById('menu-list');
+        container.innerHTML = "<div class='loading'>Fetching menu from Redis...</div>";
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/restaurants/${restId}/menu`);
+            const menu = await response.json();
+
+            if (!response.ok) throw new Error("Failed to fetch menu");
+
+            container.innerHTML = menu.map(item => `
+                <div class="list-item">
+                    <div><strong>${item.name}</strong><br>₫${item.price.toLocaleString()}</div>
+                    <button onclick="simulatePayment('${restId}', '${restName}', '${item.name}', ${item.price})">Pay Now (Demo)</button>
+                </div>
+            `).join('');
+        } catch (error) {
+            container.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+        }
     }
 
-    function simulatePayment(restId, restName, itemName, price) {
-        // Constructing a denormalized JSON document. 
-        // Notice how we store the exact strings, not just IDs. 
-        // This makes NoSQL reads incredibly fast because no joins are needed.
+    // --- TRANSACTIONS (MongoDB) ---
+    async function simulatePayment(restId, restName, itemName, price) {
         const transactionRecord = {
             transactionId: 'TXN-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
             user: currentUser,
@@ -135,36 +164,53 @@
             status: 'SUCCESS'
         };
 
-        // TODO: Replace with fetch POST to Express backend
-        // fetch('/api/payments/add', { method: 'POST', body: JSON.stringify(transactionRecord) })
-        paymentHistory.unshift(transactionRecord); 
-        
-        alert(`Payment successful for ${itemName}! Transaction ID: ${transactionRecord.transactionId}`);
+        try {
+            const response = await fetch(`${API_BASE_URL}/payments/add`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(transactionRecord)
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "Failed to process payment");
+
+            alert(`Payment successful! Transaction ID: ${transactionRecord.transactionId}`);
+        } catch (error) {
+            alert(`Error: ${error.message}`);
+        }
     }
 
-    function renderHistory() {
-        // TODO: Replace with fetch GET from Express backend
-        // const response = await fetch(`/api/payments/history/${currentUser}`);
+    async function renderHistory() {
         const container = document.getElementById('history-list');
-        
-        if (paymentHistory.length === 0) {
-            container.innerHTML = "<p>No payments found.</p>";
-            return;
-        }
+        container.innerHTML = "<div class='loading'>Fetching history from MongoDB...</div>";
 
-        container.innerHTML = paymentHistory.map(record => {
-            const dateStr = new Date(record.timestamp).toLocaleString();
-            return `
-                <div class="history-card">
-                    <div style="display: flex; justify-content: space-between;">
-                        <strong>₫${record.amount.toLocaleString()} - ${record.item}</strong>
-                        <span style="color: green; font-weight: bold;">${record.status}</span>
+        try {
+            const response = await fetch(`${API_BASE_URL}/payments/history/${currentUser}`);
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || "Failed to fetch history");
+
+            const history = result.data; 
+
+            if (!history || history.length === 0) {
+                container.innerHTML = "<p>No payments found.</p>";
+                return;
+            }
+
+            container.innerHTML = history.map(record => {
+                const dateStr = new Date(record.timestamp).toLocaleString();
+                return `
+                    <div class="history-card">
+                        <div style="display: flex; justify-content: space-between;">
+                            <strong>₫${record.amount.toLocaleString()} - ${record.item}</strong>
+                            <span style="color: green; font-weight: bold;">${record.status}</span>
+                        </div>
+                        <span class="meta-data">@ ${record.restaurant}</span>
+                        <span class="meta-data">TXN: ${record.transactionId} | Date: ${dateStr}</span>
                     </div>
-                    <span class="meta-data">@ ${record.restaurant}</span>
-                    <span class="meta-data">TXN: ${record.transactionId} | Date: ${dateStr}</span>
-                </div>
-            `;
-        }).join('');
+                `;
+            }).join('');
+        } catch (error) {
+            container.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+        }
     }
 </script>
 </body>
