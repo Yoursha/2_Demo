@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Delivery Platform</title>
+    <style>
+        :root {
+            --primary: #ff5722;
+            --bg: #f4f4f9;
+            --text: #333;
+            --card-bg: #fff;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .view {
+            display: none;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .view.active {
+            display: block;
+        }
+        h2 { border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 10px;
+        }
+        button:hover { background-color: #e64a19; }
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .list-item button {
+            width: auto;
+            margin-top: 0;
+        }
+        .nav-bar {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .nav-btn { width: auto; background: #555; }
+        #cart-summary {
+            background: #ffe0b2;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <div id="login-view" class="view active">
+        <h2>Login</h2>
+        <input type="text" id="username" placeholder="Username (e.g., testuser)" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <button onclick="handleLogin()">Sign In</button>
+    </div>
+
+    <div id="restaurant-view" class="view">
+        <div class="nav-bar">
+            <span>Welcome, <b id="display-user"></b></span>
+            <button class="nav-btn" onclick="logout()">Logout</button>
+        </div>
+        <h2>Select a Restaurant</h2>
+        <div id="restaurant-list"></div>
+    </div>
+
+    <div id="menu-view" class="view">
+        <div class="nav-bar">
+            <button class="nav-btn" onclick="showView('restaurant-view')">Back to Restaurants</button>
+            <button class="nav-btn" onclick="showView('checkout-view')">Go to Checkout (<span id="cart-count">0</span>)</button>
+        </div>
+        <h2 id="menu-title">Menu</h2>
+        <div id="menu-list"></div>
+    </div>
+
+    <div id="checkout-view" class="view">
+        <div class="nav-bar">
+            <button class="nav-btn" onclick="showView('menu-view')">Back to Menu</button>
+        </div>
+        <h2>Checkout</h2>
+        <div id="cart-items"></div>
+        <div id="cart-summary">
+            <strong>Total: $<span id="cart-total">0.00</span></strong>
+        </div>
+        <button onclick="placeOrder()">Place Order</button>
+    </div>
+
+</div>
+
+<script>
+    // --- Mock Data (Replace with API fetch calls later) ---
+    const mockRestaurants = [
+        { id: 'r1', name: 'The Burger Joint', type: 'Fast Food' },
+        { id: 'r2', name: 'Sushi Master', type: 'Japanese' }
+    ];
+
+    const mockMenus = {
+        'r1': [
+            { id: 'm1', name: 'Classic Cheeseburger', price: 8.99 },
+            { id: 'm2', name: 'Large Fries', price: 3.99 }
+        ],
+        'r2': [
+            { id: 'm3', name: 'Salmon Roll', price: 12.50 },
+            { id: 'm4', name: 'Miso Soup', price: 2.50 }
+        ]
+    };
+
+    // --- State Management ---
+    let currentUser = null;
+    let currentRestaurant = null;
+    let cart = [];
+
+    // --- UI Navigation ---
+    function showView(viewId) {
+        document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+        document.getElementById(viewId).classList.add('active');
+        renderCartUI();
+    }
+
+    // --- Core Functions ---
+    function handleLogin() {
+        const user = document.getElementById('username').value;
+        if (!user) return alert("Please enter a username.");
+        
+        // TODO: Later, send a POST request to your auth endpoint
+        // fetch('/api/login', { method: 'POST', body: JSON.stringify({ user, pass }) })
+        
+        currentUser = user;
+        document.getElementById('display-user').innerText = currentUser;
+        renderRestaurants();
+        showView('restaurant-view');
+    }
+
+    function logout() {
+        currentUser = null;
+        cart = [];
+        showView('login-view');
+    }
+
+    function renderRestaurants() {
+        // TODO: Later, fetch from your NoSQL 'restaurants' collection
+        const container = document.getElementById('restaurant-list');
+        container.innerHTML = mockRestaurants.map(r => `
+            <div class="list-item">
+                <div>
+                    <strong>${r.name}</strong><br>
+                    <small>${r.type}</small>
+                </div>
+                <button onclick="openMenu('${r.id}', '${r.name}')">View Menu</button>
+            </div>
+        `).join('');
+    }
+
+    function openMenu(restId, restName) {
+        currentRestaurant = restId;
+        document.getElementById('menu-title').innerText = `Menu: ${restName}`;
+        
+        // TODO: Later, fetch menu from DB based on restId
+        const menu = mockMenus[restId];
+        const container = document.getElementById('menu-list');
+        container.innerHTML = menu.map(item => `
+            <div class="list-item">
+                <div>
+                    <strong>${item.name}</strong><br>
+                    $${item.price.toFixed(2)}
+                </div>
+                <button onclick="addToCart('${item.id}', '${item.name}', ${item.price})">Add</button>
+            </div>
+        `).join('');
+        
+        showView('menu-view');
+    }
+
+    function addToCart(id, name, price) {
+        cart.push({ id, name, price });
+        renderCartUI();
+        alert(`${name} added to cart!`);
+    }
+
+    function renderCartUI() {
+        document.getElementById('cart-count').innerText = cart.length;
+        
+        const container = document.getElementById('cart-items');
+        const totalEl = document.getElementById('cart-total');
+        
+        if (cart.length === 0) {
+            container.innerHTML = "<p>Your cart is empty.</p>";
+            totalEl.innerText = "0.00";
+            return;
+        }
+
+        let total = 0;
+        container.innerHTML = cart.map((item, index) => {
+            total += item.price;
+            return `
+                <div class="list-item">
+                    <span>${item.name}</span>
+                    <span>$${item.price.toFixed(2)} 
+                        <button style="padding: 2px 5px; margin-left: 10px; background: #e53935;" onclick="removeFromCart(${index})">X</button>
+                    </span>
+                </div>
+            `;
+        }).join('');
+        
+        totalEl.innerText = total.toFixed(2);
+    }
+
+    function removeFromCart(index) {
+        cart.splice(index, 1);
+        renderCartUI();
+    }
+
+    function placeOrder() {
+        if (cart.length === 0) return alert("Add items to your cart first!");
+        
+        const orderData = {
+            user: currentUser,
+            restaurantId: currentRestaurant,
+            items: cart,
+            total: document.getElementById('cart-total').innerText,
+            timestamp: new Date().toISOString()
+        };
+
+        // TODO: Later, POST this orderData object directly to your backend Node.js route
+        // to be inserted into your Document Store (MongoDB) or Column Family database.
+        console.log("Order placed:", orderData);
+        
+        alert("Order placed successfully! Check console for data payload.");
+        cart = [];
+        showView('restaurant-view');
+    }
+</script>
+</body>
+</html>
