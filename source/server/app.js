@@ -8,12 +8,12 @@ app.use(express.json());
 // Import Routes
 const authRoutes = require('./routes/authRoutes');
 const restaurantRoutes = require('./routes/restaurantRoutes');
-const orderRoutes = require('./routes/orderRoutes');
+const orderRoutes = require('./routes/paymentsRoutes');
 
 // Mount Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/restaurants', restaurantRoutes);
-app.use('/api/orders', orderRoutes);
+app.use('/api/payments', paymentsRoutes);
 
 // Database Connection Placeholder (e.g., MongoDB/Document Store)
 const connectDB = async () => {

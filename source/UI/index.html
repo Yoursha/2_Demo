@@ -3,79 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Food Delivery Platform</title>
+    <title>NoSQL Demo: Payment History</title>
     <style>
-        :root {
-            --primary: #ff5722;
-            --bg: #f4f4f9;
-            --text: #333;
-            --card-bg: #fff;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-        }
-        .view {
-            display: none;
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        .view.active {
-            display: block;
-        }
+        :root { --primary: #009688; --bg: #eceff1; --text: #263238; --card-bg: #fff; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .container { max-width: 700px; margin: 0 auto; }
+        .view { display: none; background: var(--card-bg); padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .view.active { display: block; }
         h2 { border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
-        input[type="text"], input[type="password"] {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        button {
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            width: 100%;
-            margin-top: 10px;
-        }
-        button:hover { background-color: #e64a19; }
-        .list-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px;
-            border-bottom: 1px solid #eee;
-        }
-        .list-item button {
-            width: auto;
-            margin-top: 0;
-        }
-        .nav-bar {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-        .nav-btn { width: auto; background: #555; }
-        #cart-summary {
-            background: #ffe0b2;
-            padding: 10px;
-            border-radius: 4px;
-            margin: 15px 0;
-        }
+        input[type="text"], input[type="password"] { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #cfd8dc; border-radius: 4px; box-sizing: border-box; }
+        button { background-color: var(--primary); color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-top: 5px; }
+        button:hover { background-color: #00796b; }
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eceff1; }
+        .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #37474f; color: white; padding: 10px; border-radius: 4px; }
+        .nav-btn { background: #546e7a; margin: 0 5px; }
+        .badge { background: #ff9800; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; }
+        .history-card { border: 1px solid #b0bec5; border-left: 4px solid var(--primary); margin-bottom: 10px; padding: 10px; border-radius: 4px; }
+        .meta-data { font-size: 12px; color: #78909c; display: block; margin-top: 5px;}
     </style>
 </head>
 <body>
@@ -83,83 +27,64 @@
 <div class="container">
     
     <div id="login-view" class="view active">
-        <h2>Login</h2>
-        <input type="text" id="username" placeholder="Username (e.g., testuser)" required>
-        <input type="password" id="password" placeholder="Password" required>
+        <h2>NoSQL Demo Login</h2>
+        <input type="text" id="username" placeholder="Username (e.g., dat_nguyen)" required>
         <button onclick="handleLogin()">Sign In</button>
     </div>
 
-    <div id="restaurant-view" class="view">
-        <div class="nav-bar">
-            <span>Welcome, <b id="display-user"></b></span>
-            <button class="nav-btn" onclick="logout()">Logout</button>
+    <div id="main-nav" class="nav-bar" style="display: none;">
+        <span>User: <b id="display-user"></b></span>
+        <div>
+            <button class="nav-btn" onclick="showView('restaurant-view')">Restaurants</button>
+            <button class="nav-btn" onclick="renderHistory(); showView('history-view')">Payment History</button>
+            <button class="nav-btn" style="background: #d32f2f;" onclick="logout()">Logout</button>
         </div>
+    </div>
+
+    <div id="restaurant-view" class="view">
         <h2>Select a Restaurant</h2>
         <div id="restaurant-list"></div>
     </div>
 
     <div id="menu-view" class="view">
-        <div class="nav-bar">
-            <button class="nav-btn" onclick="showView('restaurant-view')">Back to Restaurants</button>
-            <button class="nav-btn" onclick="showView('checkout-view')">Go to Checkout (<span id="cart-count">0</span>)</button>
-        </div>
         <h2 id="menu-title">Menu</h2>
         <div id="menu-list"></div>
     </div>
 
-    <div id="checkout-view" class="view">
-        <div class="nav-bar">
-            <button class="nav-btn" onclick="showView('menu-view')">Back to Menu</button>
-        </div>
-        <h2>Checkout</h2>
-        <div id="cart-items"></div>
-        <div id="cart-summary">
-            <strong>Total: $<span id="cart-total">0.00</span></strong>
-        </div>
-        <button onclick="placeOrder()">Place Order</button>
+    <div id="history-view" class="view">
+        <h2>Your Payment History <span class="badge">NoSQL Demo</span></h2>
+        <p style="font-size: 13px; color: #666;">Demonstrating fast retrieval of denormalized, append-only time-series data.</p>
+        <div id="history-list"></div>
     </div>
 
 </div>
 
 <script>
-    // --- Mock Data (Replace with API fetch calls later) ---
+    // --- Mock Data ---
     const mockRestaurants = [
-        { id: 'r1', name: 'The Burger Joint', type: 'Fast Food' },
-        { id: 'r2', name: 'Sushi Master', type: 'Japanese' }
+        { id: 'r1', name: 'Phở Hòa', type: 'Vietnamese' },
+        { id: 'r2', name: 'Pizza 4P\'s', type: 'Italian' }
     ];
 
     const mockMenus = {
-        'r1': [
-            { id: 'm1', name: 'Classic Cheeseburger', price: 8.99 },
-            { id: 'm2', name: 'Large Fries', price: 3.99 }
-        ],
-        'r2': [
-            { id: 'm3', name: 'Salmon Roll', price: 12.50 },
-            { id: 'm4', name: 'Miso Soup', price: 2.50 }
-        ]
+        'r1': [{ id: 'm1', name: 'Phở Đặc Biệt', price: 65000 }, { id: 'm2', name: 'Trà Đá', price: 5000 }],
+        'r2': [{ id: 'm3', name: 'Burrata Margherita', price: 250000 }, { id: 'm4', name: 'Crab Pasta', price: 180000 }]
     };
 
-    // --- State Management ---
     let currentUser = null;
-    let currentRestaurant = null;
-    let cart = [];
+    let paymentHistory = []; // Simulating our NoSQL Collection
 
     // --- UI Navigation ---
     function showView(viewId) {
         document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
         document.getElementById(viewId).classList.add('active');
-        renderCartUI();
+        if (currentUser) document.getElementById('main-nav').style.display = 'flex';
     }
 
     // --- Core Functions ---
     function handleLogin() {
-        const user = document.getElementById('username').value;
-        if (!user) return alert("Please enter a username.");
-        
-        // TODO: Later, send a POST request to your auth endpoint
-        // fetch('/api/login', { method: 'POST', body: JSON.stringify({ user, pass }) })
-        
-        currentUser = user;
+        currentUser = document.getElementById('username').value;
+        if (!currentUser) return;
         document.getElementById('display-user').innerText = currentUser;
         renderRestaurants();
         showView('restaurant-view');
@@ -167,101 +92,79 @@
 
     function logout() {
         currentUser = null;
-        cart = [];
+        document.getElementById('main-nav').style.display = 'none';
         showView('login-view');
     }
 
     function renderRestaurants() {
-        // TODO: Later, fetch from your NoSQL 'restaurants' collection
         const container = document.getElementById('restaurant-list');
         container.innerHTML = mockRestaurants.map(r => `
             <div class="list-item">
-                <div>
-                    <strong>${r.name}</strong><br>
-                    <small>${r.type}</small>
-                </div>
+                <div><strong>${r.name}</strong><br><small>${r.type}</small></div>
                 <button onclick="openMenu('${r.id}', '${r.name}')">View Menu</button>
             </div>
         `).join('');
     }
 
     function openMenu(restId, restName) {
-        currentRestaurant = restId;
         document.getElementById('menu-title').innerText = `Menu: ${restName}`;
-        
-        // TODO: Later, fetch menu from DB based on restId
         const menu = mockMenus[restId];
         const container = document.getElementById('menu-list');
+        
         container.innerHTML = menu.map(item => `
             <div class="list-item">
-                <div>
-                    <strong>${item.name}</strong><br>
-                    $${item.price.toFixed(2)}
-                </div>
-                <button onclick="addToCart('${item.id}', '${item.name}', ${item.price})">Add</button>
+                <div><strong>${item.name}</strong><br>₫${item.price.toLocaleString()}</div>
+                <button onclick="simulatePayment('${restId}', '${restName}', '${item.name}', ${item.price})">Pay Now (Demo)</button>
             </div>
         `).join('');
-        
         showView('menu-view');
     }
 
-    function addToCart(id, name, price) {
-        cart.push({ id, name, price });
-        renderCartUI();
-        alert(`${name} added to cart!`);
+    function simulatePayment(restId, restName, itemName, price) {
+        // Constructing a denormalized JSON document. 
+        // Notice how we store the exact strings, not just IDs. 
+        // This makes NoSQL reads incredibly fast because no joins are needed.
+        const transactionRecord = {
+            transactionId: 'TXN-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+            user: currentUser,
+            restaurant: restName, 
+            item: itemName,
+            amount: price,
+            currency: 'VND',
+            timestamp: new Date().toISOString(),
+            status: 'SUCCESS'
+        };
+
+        // TODO: Replace with fetch POST to Express backend
+        // fetch('/api/payments/add', { method: 'POST', body: JSON.stringify(transactionRecord) })
+        paymentHistory.unshift(transactionRecord); 
+        
+        alert(`Payment successful for ${itemName}! Transaction ID: ${transactionRecord.transactionId}`);
     }
 
-    function renderCartUI() {
-        document.getElementById('cart-count').innerText = cart.length;
+    function renderHistory() {
+        // TODO: Replace with fetch GET from Express backend
+        // const response = await fetch(`/api/payments/history/${currentUser}`);
+        const container = document.getElementById('history-list');
         
-        const container = document.getElementById('cart-items');
-        const totalEl = document.getElementById('cart-total');
-        
-        if (cart.length === 0) {
-            container.innerHTML = "<p>Your cart is empty.</p>";
-            totalEl.innerText = "0.00";
+        if (paymentHistory.length === 0) {
+            container.innerHTML = "<p>No payments found.</p>";
             return;
         }
 
-        let total = 0;
-        container.innerHTML = cart.map((item, index) => {
-            total += item.price;
+        container.innerHTML = paymentHistory.map(record => {
+            const dateStr = new Date(record.timestamp).toLocaleString();
             return `
-                <div class="list-item">
-                    <span>${item.name}</span>
-                    <span>$${item.price.toFixed(2)} 
-                        <button style="padding: 2px 5px; margin-left: 10px; background: #e53935;" onclick="removeFromCart(${index})">X</button>
-                    </span>
+                <div class="history-card">
+                    <div style="display: flex; justify-content: space-between;">
+                        <strong>₫${record.amount.toLocaleString()} - ${record.item}</strong>
+                        <span style="color: green; font-weight: bold;">${record.status}</span>
+                    </div>
+                    <span class="meta-data">@ ${record.restaurant}</span>
+                    <span class="meta-data">TXN: ${record.transactionId} | Date: ${dateStr}</span>
                 </div>
             `;
         }).join('');
-        
-        totalEl.innerText = total.toFixed(2);
-    }
-
-    function removeFromCart(index) {
-        cart.splice(index, 1);
-        renderCartUI();
-    }
-
-    function placeOrder() {
-        if (cart.length === 0) return alert("Add items to your cart first!");
-        
-        const orderData = {
-            user: currentUser,
-            restaurantId: currentRestaurant,
-            items: cart,
-            total: document.getElementById('cart-total').innerText,
-            timestamp: new Date().toISOString()
-        };
-
-        // TODO: Later, POST this orderData object directly to your backend Node.js route
-        // to be inserted into your Document Store (MongoDB) or Column Family database.
-        console.log("Order placed:", orderData);
-        
-        alert("Order placed successfully! Check console for data payload.");
-        cart = [];
-        showView('restaurant-view');
     }
 </script>
 </body>
