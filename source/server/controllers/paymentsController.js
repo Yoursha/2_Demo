@@ -1,55 +1,82 @@
 /**
- * Controller for handling append-heavy transaction data.
- * Ideal for a Document Store or Column Family Database.
+ * Controller for append-heavy payment transaction data.
+ * Uses Apache Cassandra — Column-Family NoSQL database.
+ *
+ * Table design:
+ *   PRIMARY KEY (username, timestamp)
+ *   → Partition key  : username  — all rows for a user live on the same node (fast write & read)
+ *   → Clustering key : timestamp DESC — rows within a partition are pre-sorted newest-first
  */
+const { client, KEYSPACE } = require('../cassandraDb');
 
+// --- Append-only INSERT (no locking, no ACID) ---
 exports.addPaymentRecord = async (req, res) => {
     try {
-        const payload = req.body;
+        const { transactionId, user, restaurant, item, amount, currency, timestamp, status } = req.body;
 
-        /* Expected payload from frontend:
-           {
-               transactionId: 'TXN-ABC123XYZ',
-               user: 'dat_nguyen',
-               restaurant: 'Phở Hòa', 
-               item: 'Phở Đặc Biệt',
-               amount: 65000,
-               currency: 'VND',
-               timestamp: '2026-06-30T14:23:24.000Z',
-               status: 'SUCCESS'
-           }
-        */
+        if (!transactionId || !user || !restaurant || !item || amount === undefined) {
+            return res.status(400).json({ error: 'Missing required payment fields.' });
+        }
 
-        // 1. Validate payload structure.
-        // 2. Perform a fast INSERT operation into your NoSQL collection (e.g., db.payment_logs.insertOne(payload)).
-        // Note: No ACID transaction or cross-table locking is needed here; it's a pure append.
+        const query = `
+            INSERT INTO ${KEYSPACE}.payment_logs
+                (username, timestamp, transaction_id, restaurant, item, amount, currency, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        await client.execute(query, [
+            user,
+            new Date(timestamp || Date.now()),
+            transactionId,
+            restaurant,
+            item,
+            amount,
+            currency || 'VND',
+            status  || 'SUCCESS'
+        ], { prepare: true }); // prepared statements → fast repeated writes
+
+        console.log(`💳 Payment written to Cassandra: ${transactionId} by ${user}`);
 
         res.status(201).json({
-            message: "Payment record added successfully to NoSQL datastore",
-            data: payload
+            message: 'Payment record added to Apache Cassandra (Column-Family)',
+            data: req.body
         });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Failed to write payment record." });
+        console.error('Cassandra INSERT error:', error);
+        res.status(500).json({ error: 'Failed to write payment record.' });
     }
 };
 
+// --- Fast read: partition scan by username (all rows on same node) ---
 exports.getPaymentHistory = async (req, res) => {
     try {
         const { username } = req.params;
 
-        // 1. Query the NoSQL collection using an index on the 'user' field.
-        // Example MongoDB query: db.payment_logs.find({ user: username }).sort({ timestamp: -1 })
-        // Example Cassandra query: SELECT * FROM payment_logs WHERE user = username ORDER BY timestamp DESC
+        // Cassandra returns rows already sorted by timestamp DESC (defined at table level)
+        const query = `
+            SELECT transaction_id, restaurant, item, amount, currency, timestamp, status
+            FROM ${KEYSPACE}.payment_logs
+            WHERE username = ?
+        `;
 
-        // 2. Return the retrieved document array.
+        const result = await client.execute(query, [username], { prepare: true });
+
+        const history = result.rows.map(row => ({
+            transactionId : row['transaction_id'],
+            restaurant    : row['restaurant'],
+            item          : row['item'],
+            amount        : row['amount'],
+            currency      : row['currency'],
+            timestamp     : row['timestamp'],
+            status        : row['status']
+        }));
 
         res.status(200).json({
-            message: "Payment history fetched",
-            data: [] // Replace with actual DB result
+            message : `Payment history fetched from Apache Cassandra for user: ${username}`,
+            data    : history
         });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Failed to fetch payment history." });
+        console.error('Cassandra SELECT error:', error);
+        res.status(500).json({ error: 'Failed to fetch payment history.' });
     }
 };

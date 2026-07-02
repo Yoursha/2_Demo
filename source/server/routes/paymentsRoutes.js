@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const paymentController = require('../controllers/paymentController');
+const paymentController = require('../controllers/paymentsController');
 
 // Add a new payment record (Append-only operation)
 router.post('/add', paymentController.addPaymentRecord);
