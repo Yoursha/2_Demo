@@ -5,6 +5,7 @@ Demo HỆ THỐNG QUẢN LÝ ỨNG DỤNG GIAO ĐỒ ĂN TRỰC TUYẾN sử d�
 ---
 
 ## Nhóm thực hiện
+Nhóm 2
 
 | MSSV | Họ và tên | Email |
 |---|---|---|
