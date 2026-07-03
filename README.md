@@ -45,7 +45,7 @@ Tạo file `.env` ở thư mục gốc (`D:\morden_database\BT\DATH\2_Demo\.env`
 PORT=3000
 DB_PASSWORD=<mật_khẩu_MongoDB_Atlas_của_bạn>
 ```
-
+*Sử dụng file .env trong folder bài nộp*
 
 ### 3. Khởi động Apache Cassandra (Docker)
 
