@@ -1,8 +1,9 @@
 // app.js
 const express = require('express');
 const cors = require('cors');
-const { connectToServer } = require('./db'); // MongoDB
-const { connectToRedis } = require('./redisDb'); // <-- Add Redis
+const { connectToServer }    = require('./db');          // MongoDB
+const { connectToRedis }     = require('./redisDb');      // Redis
+const { connectToCassandra } = require('./cassandraDb');  // Apache Cassandra
 require('dotenv').config();
 
 const app = express();
@@ -22,7 +23,7 @@ app.use('/api/payments', paymentsRoutes);
 app.use('/api/restaurants', restaurantRoutes);
 
 // Connect to both databases, then start the server
-Promise.all([connectToServer(), connectToRedis()])
+Promise.all([connectToServer(), connectToRedis(), connectToCassandra()])
     .then(() => {
         app.listen(port, () => {
             console.log(`🚀 Server running on http://localhost:${port}`);

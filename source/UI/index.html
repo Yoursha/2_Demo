@@ -56,7 +56,7 @@
     </div>
 
     <div id="history-view" class="view">
-        <h2>Your Payment History <span class="badge mongo">MongoDB Atlas</span></h2>
+        <h2>Your Payment History <span class="badge redis" style="background:#FF6F00">Apache Cassandra</span></h2>
         <div id="history-list"></div>
     </div>
 
@@ -181,7 +181,7 @@
 
     async function renderHistory() {
         const container = document.getElementById('history-list');
-        container.innerHTML = "<div class='loading'>Fetching history from MongoDB...</div>";
+        container.innerHTML = "<div class='loading'>Fetching history from Apache Cassandra...</div>";
 
         try {
             const response = await fetch(`${API_BASE_URL}/payments/history/${currentUser}`);
