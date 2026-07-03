@@ -65,7 +65,8 @@ exports.getPaymentHistory = async (req, res) => {
             transactionId : row['transaction_id'],
             restaurant    : row['restaurant'],
             item          : row['item'],
-            amount        : row['amount'],
+            // Cassandra DECIMAL → BigDecimal object; convert to JS number for JSON serialization
+            amount        : parseFloat(row['amount'].toString()),
             currency      : row['currency'],
             timestamp     : row['timestamp'],
             status        : row['status']
