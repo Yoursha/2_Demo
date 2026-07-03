@@ -13,12 +13,12 @@ app.use(express.json());
 
 // Import Routes
 const authRoutes = require('./routes/authRoutes');
-const paymentRoutes = require('./routes/paymentRoutes');
+const paymentsRoutes = require('./routes/paymentsRoutes');
 const restaurantRoutes = require('./routes/restaurantRoutes');
 
 // Mount Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/payments', paymentRoutes);
+app.use('/api/payments', paymentsRoutes);
 app.use('/api/restaurants', restaurantRoutes);
 
 // Connect to both databases, then start the server
